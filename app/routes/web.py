@@ -11,7 +11,7 @@ from app.database import get_db
 from app.models import AuditLog, Command, FileOperation, Project
 from app.schemas import ProjectCreate, ProjectUpdate
 from app.services.files import WorkspaceService
-from app.services.planner import MockPlanner
+from app.services.planner import PlannerError, get_planner
 
 router = APIRouter()
 
@@ -67,8 +67,13 @@ def propose(project_id: int, instruction: str = Form(...), db: Session = Depends
     project = project_or_404(db, project_id)
     if project.archived:
         raise HTTPException(409, "Archived projects cannot accept commands")
-    plan = MockPlanner().create_plan(instruction)
-    payload = {"summary": plan.summary, "steps": plan.steps}
+    settings = get_settings()
+    planner = get_planner(settings.openai_api_key, settings.openai_model, settings.openai_timeout_seconds)
+    try:
+        plan = planner.create_plan(instruction)
+    except PlannerError as exc:
+        raise HTTPException(502, str(exc)) from exc
+    payload = {"title": plan.title, "summary": plan.summary, "steps": plan.steps}
     command = Command(project_id=project_id, instruction=instruction.strip(), plan_json=json.dumps(payload, ensure_ascii=False))
     db.add(command); db.flush()
     for op in plan.operations:
