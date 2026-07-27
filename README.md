@@ -9,7 +9,7 @@ AI Cloud OS is a secure, server-rendered FastAPI application for turning Thai or
 - Proposed file operations, explicit approve/reject decision, statuses, errors, and timestamps.
 - Workspace confinement using resolved paths; absolute paths and traversal segments are rejected.
 - No shell execution and no secrets in code or application logs.
-- Planner `Protocol` makes a future AI implementation replaceable without changing the approval executor.
+- A validated planner interface selects OpenAI when configured and the deterministic mock otherwise, without changing the approval executor.
 
 ## Windows setup (PowerShell)
 
@@ -23,10 +23,11 @@ py -3.12 -m venv .venv
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 Copy-Item .env.example .env
+$env:OPENAI_API_KEY="your_api_key_here"
 python -m uvicorn app.main:app --reload
 ```
 
-If script execution is disabled, run `Set-ExecutionPolicy -Scope Process Bypass` before activating. Visit <http://localhost:8000>. Stop with **Ctrl+C**.
+The `$env:OPENAI_API_KEY` command configures the key for the current PowerShell window without writing the secret to disk. To use the mock fallback instead, omit that command and leave `OPENAI_API_KEY=` blank in `.env`. If script execution is disabled, run `Set-ExecutionPolicy -Scope Process Bypass` before activating. Visit <http://localhost:8000>. Stop with **Ctrl+C**.
 
 ## macOS/Linux setup
 
@@ -62,6 +63,9 @@ pytest -q
 | `DATABASE_URL` | `sqlite:///./ai_cloud_os.db` | SQLAlchemy URL; a PostgreSQL driver can be added later |
 | `WORKSPACE_ROOT` | `./workspaces` | Only directory in which approved files may be written |
 | `DEBUG` | `false` | Development setting; keep false in production |
+| `OPENAI_API_KEY` | blank | OpenAI API key; when blank, the mock planner is selected |
+| `OPENAI_MODEL` | `gpt-4o-mini` | Model used to produce structured plans |
+| `OPENAI_TIMEOUT_SECONDS` | `30` | OpenAI request timeout in seconds |
 
 ## Structure
 
@@ -75,4 +79,4 @@ workspaces/
 Dockerfile  docker-compose.yml  requirements.txt
 ```
 
-For internet-facing deployment, place the app behind a TLS reverse proxy and add your identity provider before allowing untrusted users. The initial version intentionally does not call an external AI service.
+The model only proposes validated operations. It never receives filesystem tools, and every operation remains pending until the user explicitly approves it. For internet-facing deployment, place the app behind a TLS reverse proxy and add your identity provider before allowing untrusted users.
