@@ -1,0 +1,13 @@
+services:
+  web:
+    build: .
+    ports: ["8000:8000"]
+    env_file: [.env]
+    volumes:
+      - ai-cloud-data:/app/workspaces
+      - ai-cloud-db:/app/data
+    environment:
+      DATABASE_URL: sqlite:////app/data/ai_cloud_os.db
+volumes:
+  ai-cloud-data:
+  ai-cloud-db:
